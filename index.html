@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D 小行星家族軌道視覺化</title>
+    <!-- 引入 Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Noto+Sans+TC:wght@300;500;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-color: #000000;
+            --card-bg: #121212;
+            --text-main: #e0e0e0;
+            --accent: #00d2ff;
+            --accent-dim: #007892;
+            --border: #333;
+        }
+
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 標題列 */
+        header {
+            background-color: rgba(20, 20, 20, 0.95);
+            border-bottom: 1px solid var(--border);
+            padding: 0.8rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+            flex-shrink: 0;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.2rem;
+            color: #fff;
+            letter-spacing: 1px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        h1 i { color: var(--accent); }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        /* 搜尋框樣式 */
+        .search-container {
+            position: relative;
+        }
+
+        input[type="text"] {
+            background: #222;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-family: 'Roboto Mono', monospace;
+            outline: none;
+            width: 200px;
+            transition: all 0.3s ease;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--accent);
+            width: 250px;
+            box-shadow: 0 0 10px rgba(0, 210, 255, 0.2);
+        }
+
+        #search-results {
+            position: absolute;
+            top: 45px;
+            right: 0;
+            background: #1a1a1a;
+            border: 1px solid var(--border);
+            max-height: 300px;
+            overflow-y: auto;
+            width: 300px;
+            display: none;
+            z-index: 1000;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+        }
+
+        .search-item {
+            padding: 0.8rem;
+            cursor: pointer;
+            border-bottom: 1px solid #333;
+            transition: background 0.2s;
+        }
+
+        .search-item:hover {
+            background-color: var(--accent-dim);
+            color: #fff;
+        }
+
+        /* 主區域佈局 - 3:2 比例設定 */
+        main {
+            display: flex;
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+        }
+
+        /* 主畫面：軌道模擬 (Flex 3) */
+        #orbit-container {
+            flex: 3;
+            height: 100%;
+            position: relative;
+            border-right: 1px solid var(--border);
+            min-width: 0; /* 防止內容溢出 */
+        }
+
+        /* 側邊欄：Phase Space 圖表 (Flex 2) */
+        aside {
+            flex: 2;
+            background: var(--card-bg);
+            display: flex;
+            flex-direction: column;
+            box-shadow: -5px 0 20px rgba(0,0,0,0.5);
+            z-index: 50;
+            min-width: 320px; /* 最小寬度保護 */
+            overflow-y: auto;
+        }
+
+        .panel-header {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+            background: #1a1a1a;
+            flex-shrink: 0;
+        }
+
+        .panel-header h2 {
+            margin: 0;
+            font-size: 1.1rem;
+            color: var(--accent);
+            font-family: 'Roboto Mono', monospace;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            background: #333;
+            font-size: 0.8rem;
+            color: #aaa;
+            margin-top: 0.5rem;
+        }
+
+        /* Phase Space 圖表區塊 */
+        .plot-section-title {
+            padding: 0.5rem 1rem; 
+            background: #000; 
+            font-size: 0.8rem; 
+            color: #888;
+            border-bottom: 1px solid #222;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        
+        .plot-section-title i {
+            color: var(--accent-dim);
+        }
+
+        /* 圖表高度自適應 */
+        .plot-wrapper {
+            flex: 1;
+            min-height: 200px;
+            width: 100%;
+            background: #080808;
+            position: relative;
+        }
+
+        .panel-content {
+            padding: 1rem;
+            overflow-y: auto;
+            flex-shrink: 0; /* 讓資訊區塊保持高度，圖表去伸縮，或者反過來 */
+            background: #151515;
+            border-top: 1px solid var(--border);
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+            border-bottom: 1px solid #222;
+            padding-bottom: 0.2rem;
+        }
+
+        .data-label { color: #888; }
+        .data-value { 
+            color: #fff; 
+            font-family: 'Roboto Mono', monospace; 
+            font-weight: bold;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 999;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-radius: 50%;
+            border-top-color: var(--accent);
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 1rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Mobile RWD */
+        @media (max-width: 1024px) {
+            main { flex-direction: column; }
+            #orbit-container { flex: none; height: 50vh; width: 100%; border-right: none; border-bottom: 1px solid var(--border); }
+            aside { flex: none; height: 50vh; width: 100%; }
+            .search-container { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loading-screen">
+    <div class="spinner"></div>
+    <div id="loading-text">載入星體資料中...</div>
+</div>
+
+<header>
+    <h1><i class="fa-solid fa-user-astronaut"></i> Solar System Families</h1>
+    <div class="controls">
+        <div class="search-container">
+            <input type="text" id="search-input" placeholder="Search Family...">
+            <div id="search-results"></div>
+        </div>
+    </div>
+</header>
+
+<main>
+    <!-- 主畫面：太陽系軌道 (60% width) -->
+    <div id="orbit-container"></div>
+
+    <!-- 側邊欄 (40% width) -->
+    <aside id="info-panel">
+        <div class="panel-header">
+            <h2 id="detail-name">Select a Family</h2>
+            <div class="badge" id="detail-id">ID: -</div>
+        </div>
+
+        <div class="plot-section-title">
+            <span><i class="fa-solid fa-chart-area"></i> a vs e (Eccentricity)</span>
+            <small>Scroll to Zoom</small>
+        </div>
+        <div class="plot-wrapper" id="plot-ae"></div>
+
+        <div class="plot-section-title" style="border-top: 1px solid #333;">
+            <span><i class="fa-solid fa-chart-area"></i> a vs i (Inclination)</span>
+            <small>Scroll to Zoom</small>
+        </div>
+        <div class="plot-wrapper" id="plot-ai"></div>
+        
+        <div class="panel-content">
+            <h3 style="color: var(--accent); font-size: 0.9rem; margin-top: 0; margin-bottom: 0.8rem;">Proper Elements</h3>
+            
+            <div class="data-row">
+                <span class="data-label">Semi-major Axis (a)</span>
+                <span class="data-value"><span id="detail-a">-</span> AU</span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Eccentricity (e)</span>
+                <span class="data-value" id="detail-e">-</span>
+            </div>
+             <div class="data-row">
+                <span class="data-label">Inclination (deg)</span>
+                <span class="data-value"><span id="detail-i">-</span>°</span>
+            </div>
+
+            <h3 style="color: var(--accent); font-size: 0.9rem; margin-top: 1rem; margin-bottom: 0.8rem;">Family Stats</h3>
+             <div class="data-row">
+                <span class="data-label">Members</span>
+                <span class="data-value" id="detail-members">-</span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Parent Body ID</span>
+                <span class="data-value" id="detail-parent">-</span>
+            </div>
+        </div>
+    </aside>
+</main>
+
+<script>
+    const DATA_URL = './asteroid_families.json';
+    let rawData = [];
+    let selectedIndex = -1;
+    
+    // 行星資料
+    const PLANETS = [
+        {name: "Mercury", a: 0.387, e: 0.205, i: 7.00, color: '#A5A5A5'},
+        {name: "Venus",   a: 0.723, e: 0.007, i: 3.39, color: '#E3BB76'},
+        {name: "Earth",   a: 1.000, e: 0.017, i: 0.00, color: '#4F4CB0'},
+        {name: "Mars",    a: 1.524, e: 0.093, i: 1.85, color: '#E27B58'},
+        {name: "Jupiter", a: 5.203, e: 0.048, i: 1.30, color: '#C88B3A'},
+        {name: "Saturn",  a: 9.537, e: 0.054, i: 2.49, color: '#C5AB6E'},
+        {name: "Uranus",  a: 19.19, e: 0.047, i: 0.77, color: '#93B8BE'},
+        {name: "Neptune", a: 30.07, e: 0.009, i: 1.77, color: '#5B68A6'}
+    ];
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        await loadData();
+        // Handle window resize to keep layout 3:2 and plots correct
+        window.addEventListener('resize', () => {
+            Plotly.Plots.resize('orbit-container');
+            Plotly.Plots.resize('plot-ae');
+            Plotly.Plots.resize('plot-ai');
+        });
+    });
+
+    async function loadData() {
+        try {
+            const response = await fetch(DATA_URL);
+            const json = await response.json();
+            
+            if (json.families && Array.isArray(json.families)) {
+                rawData = json.families;
+            } else if (Array.isArray(json)) {
+                rawData = json;
+            }
+
+            if (rawData.length === 0) throw new Error("Empty dataset");
+
+            initOrbitSystem();
+            init2DPhasePlots();
+            setupSearch();
+            
+            document.getElementById('loading-screen').style.display = 'none';
+
+        } catch (error) {
+            document.getElementById('loading-text').textContent = "Error: " + error.message;
+            document.getElementById('loading-text').style.color = "red";
+        }
+    }
+
+    // --- Side Panel: 2D Phase Plots ---
+    function init2DPhasePlots() {
+        const x = rawData.map(d => d.a_center_au);
+        const y_e = rawData.map(d => d.e_center);
+        const y_i = rawData.map(d => d.i_center_deg);
+        const text = rawData.map(d => d.family_name || `Family ${d.family_id}`);
+        const customData = rawData.map((_, i) => i);
+
+        const baseColors = new Array(rawData.length).fill('#555');
+        const baseSizes = new Array(rawData.length).fill(5);
+
+        const commonLayout = {
+            margin: {l: 40, r: 20, t: 10, b: 30},
+            paper_bgcolor: '#121212',
+            plot_bgcolor: '#000',
+            font: { family: 'Roboto Mono', color: '#888', size: 10 },
+            xaxis: { gridcolor: '#333', zerolinecolor: '#444' },
+            yaxis: { gridcolor: '#333', zerolinecolor: '#444' },
+            showlegend: false,
+            hovermode: 'closest',
+            dragmode: 'zoom' // 允許縮放
+        };
+
+        // Plot 1: a vs e
+        const traceAE = {
+            x: x, y: y_e,
+            mode: 'markers',
+            type: 'scatter',
+            marker: { color: baseColors, size: baseSizes },
+            text: text,
+            customdata: customData,
+            hovertemplate: '<b>%{text}</b><br>a: %{x:.3f} AU<br>e: %{y:.3f}<extra></extra>'
+        };
+
+        const layoutAE = JSON.parse(JSON.stringify(commonLayout));
+        layoutAE.yaxis.title = 'Eccentricity';
+        layoutAE.yaxis.range = [0, 1];
+
+        Plotly.newPlot('plot-ae', [traceAE], layoutAE, {displayModeBar: false, responsive: true});
+
+        // Plot 2: a vs i
+        const traceAI = {
+            x: x, y: y_i,
+            mode: 'markers',
+            type: 'scatter',
+            marker: { color: baseColors, size: baseSizes },
+            text: text,
+            customdata: customData,
+            hovertemplate: '<b>%{text}</b><br>a: %{x:.3f} AU<br>i: %{y:.2f}°<extra></extra>'
+        };
+
+        const layoutAI = JSON.parse(JSON.stringify(commonLayout));
+        layoutAI.yaxis.title = 'Inclination (deg)';
+        layoutAI.yaxis.range = [0, 90];
+
+        Plotly.newPlot('plot-ai', [traceAI], layoutAI, {displayModeBar: false, responsive: true});
+
+        bindPlotEvents('plot-ae');
+        bindPlotEvents('plot-ai');
+    }
+
+    function bindPlotEvents(divId) {
+        const el = document.getElementById(divId);
+        
+        el.on('plotly_click', data => {
+            const index = data.points[0].customdata;
+            selectFamily(rawData[index], index);
+        });
+
+        el.on('plotly_hover', data => {
+            const index = data.points[0].customdata;
+            updatePhaseColors(index, true);
+        });
+
+        el.on('plotly_unhover', () => {
+            updatePhaseColors(selectedIndex, false);
+        });
+    }
+
+    function updatePhaseColors(targetIndex, isHover) {
+        // 使用 Plotly.restyle 時，如果資料量大，頻繁調用會卡。
+        // 但 100-200 點還好，如果是上千點建議只更新選中的點。
+        // 這裡做全量更新以確保狀態正確。
+        
+        const colors = rawData.map((_, i) => {
+            if (isHover && i === targetIndex) return '#ffffff';
+            if (i === selectedIndex) return '#00d2ff';
+            return '#444444';
+        });
+        
+        const sizes = rawData.map((_, i) => {
+            if (isHover && i === targetIndex) return 10;
+            if (i === selectedIndex) return 8;
+            return 5;
+        });
+
+        const update = {
+            'marker.color': [colors],
+            'marker.size': [sizes]
+        };
+
+        Plotly.restyle('plot-ae', update);
+        Plotly.restyle('plot-ai', update);
+    }
+
+    // --- Main View: Solar System Orbits ---
+    function initOrbitSystem() {
+        const traces = [];
+
+        // 1. Sun
+        traces.push({
+            x: [0], y: [0], z: [0],
+            mode: 'markers',
+            marker: { size: 10, color: '#ffcc00' },
+            type: 'scatter3d',
+            name: 'Sun',
+            hoverinfo: 'name'
+        });
+
+        // 2. Planets
+        PLANETS.forEach(p => {
+            const orbit = calculateOrbitPath(p.a, p.e, p.i, 100);
+            traces.push({
+                x: orbit.x, y: orbit.y, z: orbit.z,
+                mode: 'lines',
+                line: { color: p.color, width: 2 },
+                type: 'scatter3d',
+                name: p.name,
+                hoverinfo: 'name'
+            });
+        });
+
+        // 3. 網格參考圓 (10, 20, 30 AU)
+        // 這樣比單純的 grid 更有天文距離感
+        [5, 10, 20, 30].forEach(r => {
+            const gridCircle = calculateOrbitPath(r, 0, 0, 64); // 圓形, e=0, i=0
+            traces.push({
+                x: gridCircle.x, y: gridCircle.y, z: gridCircle.z,
+                mode: 'lines',
+                line: { color: '#333', width: 1, dash: 'dot' },
+                type: 'scatter3d',
+                name: `${r} AU`,
+                hoverinfo: 'name',
+                showlegend: false
+            });
+        });
+
+        // 4. Scale Bar (比例尺)
+        // 在遠處畫一條線表示 10 AU
+        traces.push({
+            x: [-35, -25], y: [-35, -35], z: [0, 0], // 左下角
+            mode: 'lines+text',
+            text: ['', '10 AU'],
+            textposition: 'top right',
+            textfont: {color: '#888', size: 12},
+            line: { color: '#888', width: 4 },
+            type: 'scatter3d',
+            name: 'Scale',
+            hoverinfo: 'none',
+            showlegend: false
+        });
+
+        const layout = {
+            scene: {
+                xaxis: { 
+                    title: 'X (AU)', 
+                    range: [-35, 35],
+                    gridcolor: '#444', // 淺色網格
+                    showbackground: false,
+                    zerolinecolor: '#666'
+                },
+                yaxis: { 
+                    title: 'Y (AU)', 
+                    range: [-35, 35],
+                    gridcolor: '#444', 
+                    showbackground: false,
+                    zerolinecolor: '#666'
+                },
+                zaxis: { 
+                    title: 'Z (AU)', 
+                    range: [-15, 15], 
+                    gridcolor: '#444',
+                    showbackground: false
+                },
+                aspectmode: 'manual',
+                aspectratio: {x: 1, y: 1, z: 0.4}, // 壓扁一點以符合太陽系盤面特徵
+                bgcolor: '#000',
+                camera: { eye: {x: 0, y: -0.5, z: 2.2}, up: {x:0, y:1, z:0} }
+            },
+            paper_bgcolor: '#000',
+            margin: {l: 0, r: 0, b: 0, t: 0},
+            showlegend: true,
+            legend: { x: 0, y: 1, font: {color: '#888'}, bgcolor: 'rgba(0,0,0,0)' }
+        };
+
+        const config = { responsive: true, displayModeBar: true };
+
+        Plotly.newPlot('orbit-container', traces, layout, config);
+    }
+
+    function updateOrbitView(family) {
+        const plotDiv = document.getElementById('orbit-container');
+        
+        // 移除舊的家族軌道 (trace index > 8+4+1 = 13? let's be dynamic)
+        // 基礎 traces: 1 Sun + 8 Planets + 4 Grids + 1 Scale = 14 traces.
+        // 但是 Plotly 的 traces index 是變動的。最好的方法是刪除最後一個，如果它是家族軌道。
+        // 或者給家族軌道一個特殊的 name 檢查。
+        
+        // 簡單做法：重新繪製比較安全，或是刪除特定索引。
+        // 為了效能，我們只刪除 ID 為 'family-orbit' 的 trace 如果有 API 支援，但 Plotly JS API 主要是靠 index。
+        // 這裡我們假設最後加入的 trace 就是家族軌道。
+        
+        const currentTraces = plotDiv.data.length;
+        const baseTraceCount = 14; // Sun(1) + Planets(8) + Grids(4) + Scale(1)
+        
+        if (currentTraces > baseTraceCount) {
+            Plotly.deleteTraces(plotDiv, [currentTraces - 1]);
+        }
+
+        // 計算軌道
+        const orbit = calculateOrbitPath(family.a_center_au, family.e_center, family.i_center_deg, 200);
+        
+        // 準備 Hover 文字
+        // 使用 repeat 讓每個點都有相同的 hover info
+        const infoText = `
+            <b>${family.family_name || 'Family ' + family.family_id}</b><br>
+            a: ${family.a_center_au.toFixed(3)} AU<br>
+            e: ${family.e_center.toFixed(3)}<br>
+            i: ${family.i_center_deg.toFixed(2)}°<br>
+            Members: ${family.n_members}<br>
+            Parent: ${family.parent_id || '-'}
+        `.trim();
+        
+        // 建立一個 array，長度等於軌道點數，內容都是 infoText
+        // scatter3d line hover 會顯示最接近點的 text
+        const hoverTexts = new Array(orbit.x.length).fill(infoText);
+
+        const familyTrace = {
+            x: orbit.x,
+            y: orbit.y,
+            z: orbit.z,
+            mode: 'lines',
+            line: { color: '#00d2ff', width: 6 },
+            type: 'scatter3d',
+            name: 'Selected Family',
+            text: hoverTexts,
+            hoverinfo: 'text', // 只顯示 text 內容
+            hoverlabel: {
+                bgcolor: '#111',
+                bordercolor: '#00d2ff',
+                font: {family: 'Roboto Mono', color: '#fff'}
+            }
+        };
+
+        Plotly.addTraces(plotDiv, familyTrace);
+    }
+
+    function calculateOrbitPath(a, e, i_deg, steps) {
+        const i_rad = i_deg * Math.PI / 180;
+        const xArr = [], yArr = [], zArr = [];
+        
+        for(let k=0; k<=steps; k++) {
+            const theta = (k / steps) * 2 * Math.PI;
+            const r = (a * (1 - e*e)) / (1 + e * Math.cos(theta));
+            
+            const x_orb = r * Math.cos(theta);
+            const y_orb = r * Math.sin(theta);
+            
+            // 簡單旋轉：假設升交點經度 Omega = 0, 近心點幅角 omega = 0
+            xArr.push(x_orb);
+            yArr.push(y_orb * Math.cos(i_rad));
+            zArr.push(y_orb * Math.sin(i_rad));
+        }
+        return {x: xArr, y: yArr, z: zArr};
+    }
+
+    function selectFamily(family, index) {
+        if (typeof index === 'undefined') {
+            index = rawData.findIndex(d => d.family_id === family.family_id);
+        }
+        selectedIndex = index;
+
+        // Update Text Info
+        const name = family.family_name || `Family ${family.family_id}`;
+        document.getElementById('detail-name').textContent = name;
+        document.getElementById('detail-id').textContent = `ID: ${family.family_id}`;
+        document.getElementById('detail-a').textContent = family.a_center_au.toFixed(4);
+        document.getElementById('detail-e').textContent = family.e_center.toFixed(4);
+        document.getElementById('detail-i').textContent = family.i_center_deg.toFixed(2);
+        document.getElementById('detail-members').textContent = family.n_members;
+        document.getElementById('detail-parent').textContent = family.parent_id || '-';
+
+        updateOrbitView(family);
+        updatePhaseColors(selectedIndex, false);
+    }
+
+    function setupSearch() {
+        const input = document.getElementById('search-input');
+        const resultsBox = document.getElementById('search-results');
+
+        input.addEventListener('input', (e) => {
+            const val = e.target.value.toLowerCase();
+            resultsBox.innerHTML = '';
+            
+            if (val.length < 1) {
+                resultsBox.style.display = 'none';
+                return;
+            }
+
+            const matches = rawData.filter(f => {
+                const name = (f.family_name || '').toLowerCase();
+                const id = String(f.family_id);
+                return name.includes(val) || id.includes(val);
+            }).slice(0, 10);
+
+            if (matches.length > 0) {
+                resultsBox.style.display = 'block';
+                matches.forEach(f => {
+                    const div = document.createElement('div');
+                    div.className = 'search-item';
+                    div.textContent = f.family_name ? `${f.family_name} (${f.family_id})` : `Family ${f.family_id}`;
+                    div.onclick = () => {
+                        selectFamily(f);
+                        input.value = '';
+                        resultsBox.style.display = 'none';
+                    };
+                    resultsBox.appendChild(div);
+                });
+            } else {
+                resultsBox.style.display = 'none';
+            }
+        });
+        
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.search-container')) {
+                resultsBox.style.display = 'none';
+            }
+        });
+    }
+</script>
+
+</body>
+</html>
