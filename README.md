@@ -2,7 +2,7 @@
 
 以 Plotly.js 製作的互動式天文視覺化，呈現 122 個小行星家族的代表軌道，以及固有半長軸、偏心率與傾角的分布。
 
-> 線上展示：啟用 GitHub Pages 後，請將網址補在這裡。
+> 線上展示：[啟用 GitHub Pages 後，請將網址補在這裡。](https://htwho.github.io/asteroid-family-3d/)
 
 ## 功能
 
