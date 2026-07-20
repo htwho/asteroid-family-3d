@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it and the original NASA PDS dataset."
+title: "Asteroid Family Atlas 3D"
+type: software
+authors:
+  - family-names: Lai
+    given-names: Hsuan-Ting
+repository-code: "https://github.com/htwho/asteroid-family-3d"
+license: MIT
+date-released: 2026-07-20
+keywords:
+  - asteroid families
+  - astronomy
+  - visualization
+preferred-citation:
+  type: dataset
+  title: "Families List from Synthetic Proper Elements"
+  authors:
+    - family-names: Nesvorny
+      given-names: D.
+  year: 2015
