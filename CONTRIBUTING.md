@@ -1,23 +1,53 @@
-# 貢獻指南
+# Contributing Guide
 
-感謝協助改善 Asteroid Family Atlas 3D。
+Thank you for helping improve Asteroid Family Atlas 3D.
 
-## 開發流程
+## Development Workflow
 
-1. Fork repository 並從 `main` 建立功能分支。
-2. 使用 `python3 -m http.server 8000` 啟動本機網站。
-3. 保持模組職責單一：資料處理放在 `data.js`、軌道邏輯放在 `orbit.js`、圖表互動放在 `plots.js`。
-4. 執行 `npm test`。
-5. 在 pull request 說明變更目的、測試方式；視覺變更請附截圖。
+1. Fork the repository and create a feature branch from `main`.
+2. Start the local website with `python3 -m http.server 8000`.
+3. Keep each module focused on one responsibility: data handling belongs in `data.js`, orbital logic in `orbit.js`, chart interaction in `plots.js`, and theme definitions in `theme.js`.
+4. Run both validation commands:
 
-## 程式碼原則
+   ```bash
+   npm test
+   npm run check:data
+   ```
 
-- 使用 ES modules 與純 JavaScript，不將新的全域變數掛到 `window`。
-- 將可獨立驗證的計算寫成無副作用函式並補上測試。
-- 新增互動元件時，同時支援鍵盤操作與可見的 focus 狀態。
-- 不直接移除或改寫資料來源 metadata。
-- 若模型假設或資料轉換方法改變，請同步更新 README 的「模型限制」。
+5. Open a pull request that explains the purpose of the change and how it was tested. Include before-and-after screenshots for visual changes.
 
-## 回報問題
+## Code Guidelines
 
-請提供瀏覽器與作業系統版本、重現步驟、預期及實際結果。圖表顯示問題若能附上螢幕截圖會更容易定位。
+- Use ES modules and vanilla JavaScript. Do not introduce new global variables on `window`.
+- Write independently testable calculations as pure functions and add appropriate tests.
+- Support keyboard interaction and visible focus states when adding interactive controls.
+- Preserve appropriate labels and ARIA attributes when changing the interface.
+- Keep light and dark Plotly themes consistent with their corresponding CSS themes.
+- Do not remove or rewrite the source dataset metadata.
+- Update the **Model Limitations** section in the README whenever modeling assumptions or data transformations change.
+
+## Data Changes
+
+- Preserve the `metadata`, `columns`, and `families` structure in `asteroid_families.json`.
+- Do not replace negative sentinel values unless the upstream source data have changed.
+- Document the source, version, and transformation process for newly imported data.
+- Run `npm run check:data` before submitting a data change.
+
+## Reporting Issues
+
+When reporting a problem, include:
+
+- browser and operating-system versions;
+- steps needed to reproduce the problem;
+- expected and actual behavior;
+- the selected family, region, and theme when relevant;
+- a screenshot for layout or chart-rendering problems, if possible.
+
+## Pull Request Checklist
+
+- [ ] The change has a focused purpose.
+- [ ] Tests and data validation pass locally.
+- [ ] Documentation has been updated when necessary.
+- [ ] Keyboard navigation remains usable.
+- [ ] Visual changes work in both light and dark themes.
+- [ ] No unrelated files are included in the change.
